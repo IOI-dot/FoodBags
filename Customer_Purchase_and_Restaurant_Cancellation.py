@@ -82,7 +82,33 @@ def customer_cancel(input_data: dict):
         "message": "Customer cancellation processed",
         "remainingBags": restaurants[order["restaurantId"]]["remaining_bags"],
     }
+from datetime import datetime
 
+# Adding Rating Module
+
+def updateRestaurantRating (cursor, restaurantID):
+  row = cursor.execute("SELECT AVG(rating) FROM CUSTOMER_RATINGS WHERE restaurant_id = ? ", (restaurantID,)).fetchone()
+  newOverallRating = row[0]
+  cursor.execute("UPDATE RESTAURANT SET overall_rating = ? WHERE restaurant_id = ? ", (newOverallRating, restaurantID))
+
+def updateCustomerRestaurantRating (cursor, userID, restaurantID, customerRating: int):
+
+    # Validate rating
+    if not (0 <= customerRating <= 5):
+        raise ValueError("Rating must be between 1 and 5")
+
+    current_time = datetime.now().isoformat()
+
+    # Check if this customer already rated this restaurant
+    existing = cursor.execute("SELECT rating FROM CUSTOMER_RATINGS WHERE user_id = ? AND restaurant_id = ?",(userID, restaurantID)).fetchone()
+
+    if existing:
+        # Update existing rating
+        cursor.execute("UPDATE CUSTOMER_RATINGS SET rating = ?, updated_at = ? WHERE user_id = ? AND restaurant_id = ?",(customerRating, current_time, userID, restaurantID))
+    else:
+        # Insert new rating
+        cursor.execute("INSERT INTO CUSTOMER_RATINGS (user_id, restaurant_id, rating, updated_at) VALUES (?, ?, ?, ?)",(userID, restaurantID, customerRating, current_time))
+    updateRestaurantRating(cursor, restaurantID)
 
 if __name__ == "__main__":
     print("Initial restaurant state:", restaurants)
@@ -113,4 +139,5 @@ if __name__ == "__main__":
     print("Restaurant Cancellation Result:")
     print(restaurant_cancel_result)
     print("Restaurants after restaurant cancel:", restaurants)
+
 
